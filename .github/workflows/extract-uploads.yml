@@ -1,0 +1,44 @@
+name: Extract uploaded ZIP files
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "incoming-zips/**/*.zip"
+      - "incoming-zips/*.zip"
+      - "scripts/extract_zips.py"
+      - ".github/workflows/extract-uploads.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: extract-uploaded-zips
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Extract ZIP files
+        run: python scripts/extract_zips.py
+
+      - name: Commit extracted files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git add -A
+            git commit -m "Automatically extract uploaded ZIP files"
+            git push
+          else
+            echo "No extracted changes."
+          fi
