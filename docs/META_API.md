@@ -1,0 +1,2 @@
+# Meta API verification
+The API version is configurable via `META_GRAPH_API_VERSION` (default v26.0). Confirm the current supported version and each field/edge in official Meta documentation before release. Verify permissions, Page tasks, pagination, post attachments, video/Reel fields, insights, and deletion rules. Do not assume `views`, `is_hidden`, or `published` are universally supported. Preserve API errors as explicit statuses.

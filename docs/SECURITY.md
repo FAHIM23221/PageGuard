@@ -1,0 +1,2 @@
+# Security
+Tokens are secrets. Never commit them, persist them in browser storage, or print them in logs. The frontend keeps the token in React memory and posts it to same-origin Netlify functions over HTTPS. Functions use Authorization headers to call Meta and do not intentionally persist or log the token. This starter does not yet implement robust multi-user server sessions, rate limiting, or production abuse controls. No delete operation is implemented.

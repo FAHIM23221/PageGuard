@@ -1,0 +1,1 @@
+import{describe,it,expect}from"vitest";const inRange=(v:number,min:number,max:number)=>Number.isFinite(v)&&v>=min&&v<=max;describe("threshold helper",()=>{it("includes boundaries",()=>{expect(inRange(50,0,50)).toBe(true);expect(inRange(51,0,50)).toBe(false)});it("rejects NaN",()=>expect(inRange(NaN,0,50)).toBe(false))});

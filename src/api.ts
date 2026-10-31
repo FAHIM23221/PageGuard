@@ -1,0 +1,1 @@
+export async function call<T>(name:string,token:string):Promise<T>{const r=await fetch(`/.netlify/functions/${name}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token})});const d=await r.json();if(!r.ok)throw new Error(d.message||"Request failed");return d as T;}
