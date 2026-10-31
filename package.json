@@ -7,9 +7,13 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "cap:sync": "cap sync android",
+    "android:debug": "cap sync android && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
+    "@capacitor/android": "latest",
+    "@capacitor/core": "latest",
     "@vitejs/plugin-react": "latest",
     "vite": "latest",
     "typescript": "latest",
@@ -18,6 +22,7 @@
     "lucide-react": "latest"
   },
   "devDependencies": {
+    "@capacitor/cli": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "vitest": "latest"
