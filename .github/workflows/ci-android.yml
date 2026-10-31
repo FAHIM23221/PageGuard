@@ -16,50 +16,73 @@ concurrency:
 
 jobs:
   verify-and-apk:
-    name: Tests, web build and Android debug APK
+    name: Tests, Web Build and Android APK
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
 
     steps:
-      - name: Check out repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      - name: Setup Java
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
 
-      - name: Set up Android SDK
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
 
-      - name: Install dependencies
+      - name: Verify Android SDK
+        run: |
+          java -version
+          node --version
+          npm --version
+          adb version
+          sdkmanager --list_installed
+
+      - name: Install Dependencies
         run: npm install
 
-      - name: Run unit tests
+      - name: Run Unit Tests
         run: npm test
 
-      - name: Type-check and build web app
+      - name: Build Web Application
         run: npm run build
 
-      - name: Add Android platform
+      - name: Verify Web Build
+        run: |
+          test -d dist
+          test -f dist/index.html
+
+      - name: Add Android Platform
         run: npx cap add android
 
-      - name: Sync web assets to Android
+      - name: Sync Android Project
         run: npx cap sync android
 
-      - name: Build debug APK
+      - name: Build Debug APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Upload debug APK
+      - name: Verify APK
+        run: |
+          test -f android/app/build/outputs/apk/debug/app-debug.apk
+          ls -lh android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: PageGuard-debug-apk
