@@ -1,0 +1,1 @@
+PageGuard automatic ZIP extraction test passed if this file appears in the repository root.
