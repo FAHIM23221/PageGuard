@@ -1,7 +1,77 @@
-const GRAPH='https://graph.facebook.com/v26.0';
-const out=(statusCode:number,data:any)=>({statusCode,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'},body:JSON.stringify(data)});
-export const handler=async(event:any)=>{if(event.httpMethod==='OPTIONS')return out(200,{});if(event.httpMethod!=='POST')return out(405,{error:'POST required'});try{const b=JSON.parse(event.body||'{}'),token=String(b.token||'').trim();if(!token||token.length>10000)return out(400,{error:'Access token required'});const get=async(url:string)=>{const r=await fetch(url);const d=await r.json();if(!r.ok||d.error)throw Error(d.error?.message||'Meta API error '+r.status);return d};const pages=async()=>{const u=new URL(GRAPH+'/me/accounts');u.searchParams.set('fields','id,name,access_token,tasks');u.searchParams.set('limit','100');u.searchParams.set('access_token',token);return (await get(u.toString())).data||[]};
-if(b.action==='pages')return out(200,{data:(await pages()).map((p:any)=>({id:p.id,name:p.name}))});
-if(b.action==='videos'){const id=String(b.pageId||'');if(!/^\\d+$/.test(id))return out(400,{error:'Invalid Page ID'});const p=(await pages()).find((x:any)=>x.id===id);if(!p?.access_token)return out(403,{error:'Page access token unavailable'});const u=new URL(GRAPH+'/'+id+'/videos');u.searchParams.set('fields','id,description,views,permalink_url,created_time');u.searchParams.set('limit','100');u.searchParams.set('access_token',p.access_token);const d=await get(u.toString());return out(200,{data:d.data||[],paging:d.paging||null});}
-if(b.action==='delete'){const id=String(b.videoId||'');if(!/^\\d+$/.test(id))return out(400,{error:'Invalid video ID'});const ps=await pages();let pageToken='';for(const p of ps){const u=new URL(GRAPH+'/'+id);u.searchParams.set('access_token',p.access_token);try{const d=await get(u.toString());if(d.id===id){pageToken=p.access_token;break}}catch{}}if(!pageToken)return out(403,{error:'Could not verify this video belongs to one of your Pages'});const u=new URL(GRAPH+'/'+id);u.searchParams.set('access_token',pageToken);const r=await fetch(u.toString(),{method:'DELETE'});const d=await r.json();if(!r.ok||d.error)return out(400,{error:d.error?.message||'Delete failed'});return out(200,{success:d.success===true});}
-return out(400,{error:'Unknown action'});}catch(e:any){return out(400,{error:e.message||'Unexpected error'});}};
+const GRAPH_VERSION = "v26.0";
+const GRAPH = `https://graph.facebook.com/${GRAPH_VERSION}`;
+const response = (statusCode: number, body: unknown) => ({
+  statusCode,
+  headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+  body: JSON.stringify(body),
+});
+
+export const handler = async (event: any) => {
+  if (event.httpMethod === "OPTIONS") return response(200, {});
+  if (event.httpMethod !== "POST") return response(405, { error: "POST required" });
+
+  try {
+    const input = JSON.parse(event.body || "{}");
+    const token = String(input.token || "").trim();
+    if (!token || token.length > 10000) return response(400, { error: "Access token required" });
+
+    // Credentials are sent in the Authorization header, never in Graph API URLs.
+    const graph = async (url: URL, accessToken = token, method = "GET") => {
+      const r = await fetch(url.toString(), {
+        method,
+        headers: { Authorization: `Bearer ${accessToken}` },
+        signal: AbortSignal.timeout(20000),
+      });
+      const data = await r.json();
+      if (!r.ok || data.error) {
+        throw new Error(data.error?.message || `Meta API error (${r.status})`);
+      }
+      return data;
+    };
+
+    const pagesUrl = new URL(`${GRAPH}/me/accounts`);
+    pagesUrl.searchParams.set("fields", "id,name,access_token,tasks");
+    pagesUrl.searchParams.set("limit", "100");
+    const getPages = async () => (await graph(pagesUrl)).data || [];
+
+    if (input.action === "pages") {
+      const pages = await getPages();
+      return response(200, {
+        data: pages.map((p: any) => ({ id: p.id, name: p.name, tasks: p.tasks || [] })),
+      });
+    }
+
+    if (input.action === "videos") {
+      const pageId = String(input.pageId || "");
+      if (!/^\d+$/.test(pageId)) return response(400, { error: "Invalid Page ID" });
+
+      const page = (await getPages()).find((p: any) => p.id === pageId);
+      if (!page?.access_token) return response(403, { error: "Page access token unavailable" });
+
+      const url = new URL(`${GRAPH}/${pageId}/videos`);
+      url.searchParams.set("fields", "id,description,views,permalink_url,created_time");
+      url.searchParams.set("limit", "100");
+      const data = await graph(url, page.access_token);
+      return response(200, {
+        data: data.data || [],
+        paging: data.paging || null,
+        inventoryComplete: !data.paging?.next,
+      });
+    }
+
+    if (input.action === "delete") {
+      // Destructive operations remain disabled until the full Safe Delete Center
+      // (fresh lookup, ownership verification, preview, dual confirmation,
+      // queue state machine, post-delete verification and immutable audit log)
+      // has been implemented and tested.
+      return response(423, {
+        error: "Deletion is disabled in this build. Use read-only audit until Safe Delete Center is ready.",
+        status: "READ_ONLY",
+      });
+    }
+
+    return response(400, { error: "Unsupported operation" });
+  } catch (error: any) {
+    return response(400, { error: error.message || "Request failed" });
+  }
+};
