@@ -1,10 +1,13 @@
+
 name: PageGuard - Test, Build and Android APK
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -15,74 +18,84 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify-and-apk:
-    name: Tests, Web Build and Android APK
+  build:
+    name: Test, Web Build and Android APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
     steps:
+      # 1. Checkout
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # 2. Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
+      # 3. Java
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
 
+      # 4. Android SDK
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: |
-            platform-tools
-            platforms;android-35
-            build-tools;35.0.0
+          packages: platform-tools platforms;android-35 build-tools;35.0.0
 
-      - name: Verify Android SDK
+      # 5. Verify tools
+      - name: Verify Environment
         run: |
-          java -version
           node --version
           npm --version
+          java -version
           adb version
-          sdkmanager --list_installed
 
+      # 6. Install dependencies
       - name: Install Dependencies
         run: npm install
 
+      # 7. Run tests
       - name: Run Unit Tests
         run: npm test
 
+      # 8. Build web app
       - name: Build Web Application
         run: npm run build
 
+      # 9. Verify web build
       - name: Verify Web Build
         run: |
           test -d dist
           test -f dist/index.html
 
+      # 10. Add Android
       - name: Add Android Platform
         run: npx cap add android
 
+      # 11. Sync Android
       - name: Sync Android Project
         run: npx cap sync android
 
+      # 12. Build APK
       - name: Build Debug APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
+      # 13. Verify APK
       - name: Verify APK
         run: |
           test -f android/app/build/outputs/apk/debug/app-debug.apk
           ls -lh android/app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Upload Android APK
+      # 14. Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: PageGuard-debug-apk
